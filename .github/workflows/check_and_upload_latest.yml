@@ -1,0 +1,43 @@
+name: Check latest versions and update Package.swift
+
+on:
+  workflow_dispatch:
+#  schedule:
+#    - cron: '0 0 * * *'
+
+jobs:
+  check-versions:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Current latest release
+      id: latest-release
+      uses: pozetroninc/github-action-get-latest-release@master
+      with:
+        repository: ${{ github.repository }}
+
+    - name: Check latest VLCKit release
+      id: latest-vlckit-version
+      run: |
+        versions=$(curl -s http://download.videolan.org/cocoapods/prod/ | grep -oP 'VLCKit-[0-9]+\.[0-9]+\.[0-9]+' | sort -V | uniq)
+
+        # Get the highest version
+        highest_version=$(echo "$versions" | tail -n 1)
+
+        echo "Highest version: $highest_version"
+
+        echo "version=$highest_version" >> $GITHUB_OUTPUT
+
+    - name: Check if the latest VLCKit version is hight than the latest release
+      run: |
+        version1=${{ steps.latest-vlckit-version.outputs.version }}
+        version2=${{ steps.latest-release.outputs.release }}
+        if dpkg --compare-versions "$version1" gt "$version2"; then
+            echo "New VLCKit version."
+        else
+            echo "Nothing new, skipping next steps."
+        fi
+
